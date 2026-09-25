@@ -83,6 +83,7 @@ namespace lmms::gui
 MainWindow::MainWindow() :
 	m_workspace( nullptr ),
 	m_toolsMenu( nullptr ),
+	m_reloadProjectAction( nullptr ),
 	m_autoSaveTimer( this ),
 	m_viewMenu( nullptr ),
 	m_metronomeToggle( 0 ),
@@ -290,6 +291,12 @@ void MainWindow::finalize()
 	addAction(project_menu, "project_open", tr("&Open..."),
 		QKeySequence::Open, &MainWindow::openProject);
 
+	m_reloadProjectAction = addAction(project_menu, "reload", tr("Re&load Project From Disk"),
+		keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_R), &MainWindow::reloadProject);
+	m_reloadProjectAction->setToolTip(tr("Reload project from disk") +
+		QString(" (%1)").arg(m_reloadProjectAction->shortcut().toString(QKeySequence::NativeText)));
+	updateReloadProjectAction();
+
 	project_menu->addMenu(new RecentProjectsMenu(this));
 
 	addAction(project_menu, "project_save", tr("&Save"),
@@ -405,6 +412,10 @@ void MainWindow::finalize()
 	project_open_recent->setMenu( new RecentProjectsMenu(this) );
 	project_open_recent->setPopupMode( ToolButton::InstantPopup );
 
+	auto project_reload = new ToolButton(m_toolBar);
+	project_reload->setDefaultAction(m_reloadProjectAction);
+	project_reload->setIcon(embed::getIconPixmap("reload"));
+
 	auto project_save = new ToolButton(
 		embed::getIconPixmap("project_save"), tr("Save current project"), this, SLOT(saveProject()), m_toolBar);
 
@@ -424,9 +435,10 @@ void MainWindow::finalize()
 	m_toolBarLayout->addWidget( project_new_from_template, 0, 2 );
 	m_toolBarLayout->addWidget( project_open, 0, 3 );
 	m_toolBarLayout->addWidget( project_open_recent, 0, 4 );
-	m_toolBarLayout->addWidget( project_save, 0, 5 );
-	m_toolBarLayout->addWidget( project_export, 0, 6 );
-	m_toolBarLayout->addWidget( m_metronomeToggle, 0, 7 );
+	m_toolBarLayout->addWidget( project_reload, 0, 5 );
+	m_toolBarLayout->addWidget( project_save, 0, 6 );
+	m_toolBarLayout->addWidget( project_export, 0, 7 );
+	m_toolBarLayout->addWidget( m_metronomeToggle, 0, 8 );
 
 
 	// window-toolbar
@@ -760,6 +772,47 @@ void MainWindow::openProject()
 			setCursor( Qt::WaitCursor );
 			song->loadProject( ofd.selectedFiles()[0] );
 			setCursor( Qt::ArrowCursor );
+		}
+	}
+}
+
+
+
+void MainWindow::reloadProject()
+{
+	if( Engine::getSong()->isLoadingProject() || Engine::getSong()->isExporting() )
+	{
+		QMessageBox::information( this, tr( "Reload Project" ),
+			tr( "The current project cannot be reloaded right now." ) );
+		return;
+	}
+
+	const QString projectFileName = Engine::getSong()->projectFileName();
+
+	if( projectFileName.isEmpty() )
+	{
+		QMessageBox::information( this, tr( "Reload Project" ),
+			tr( "The current project has not been saved to a file yet." ) );
+		return;
+	}
+
+	if( !QFileInfo::exists( projectFileName ) )
+	{
+		QMessageBox::warning( this, tr( "Reload Project" ),
+			tr( "The project file %1 no longer exists." ).arg( projectFileName ) );
+		return;
+	}
+
+	if( mayChangeProject(true) )
+	{
+		setCursor( Qt::WaitCursor );
+		const auto loadStatus = Engine::getSong()->loadProject( projectFileName );
+		unsetCursor();
+
+		if( loadStatus == Song::ProjectLoadStatus::Failed )
+		{
+			QMessageBox::warning( this, tr( "Reload Project" ),
+				tr( "The project file %1 could not be reloaded." ).arg( projectFileName ) );
 		}
 	}
 }
@@ -1576,6 +1629,16 @@ bool MainWindow::guiSaveProjectAs( const QString & filename )
 	return songSaveResult;
 }
 
+void MainWindow::updateReloadProjectAction()
+{
+	if( m_reloadProjectAction == nullptr )
+	{
+		return;
+	}
+
+	m_reloadProjectAction->setEnabled( !Engine::getSong()->projectFileName().isEmpty() );
+}
+
 void MainWindow::onExportProject()
 {
 	this->exportProject();
@@ -1625,6 +1688,7 @@ void MainWindow::onSongModified()
 
 void MainWindow::onProjectFileNameChanged()
 {
+	this->updateReloadProjectAction();
 	this->resetWindowTitle();
 }
 

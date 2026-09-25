@@ -97,6 +97,14 @@ public:
 		}
 	};
 
+	enum class ProjectLoadStatus
+	{
+		Success,
+		Failed,
+		FailedAlreadyReported,
+		Cancelled
+	};
+
 	void clearErrors();
 	void collectError( const QString error );
 	bool hasErrors();
@@ -249,7 +257,7 @@ public:
 	// file management
 	void createNewProject();
 	void createNewProjectFromTemplate( const QString & templ );
-	void loadProject( const QString & filename );
+	ProjectLoadStatus loadProject( const QString & filename );
 	bool guiSaveProject();
 	bool guiSaveProjectAs(const QString & filename);
 	bool saveProjectFile(const QString & filename, bool withResources = false);

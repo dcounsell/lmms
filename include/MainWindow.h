@@ -149,6 +149,7 @@ public slots:
 	void emptySlot();
 	void createNewProject();
 	void openProject();
+	void reloadProject();
 	bool saveProject();
 	bool saveProjectAs();
 	bool saveProjectAsNewVersion();
@@ -197,6 +198,7 @@ private:
 	void handleSaveResult(QString const & filename, bool songSavedSuccessfully);
 	bool guiSaveProject();
 	bool guiSaveProjectAs( const QString & filename );
+	void updateReloadProjectAction();
 
 	class MovableQMdiArea : public QMdiArea
 	{
@@ -232,6 +234,7 @@ private:
 	} m_keyMods;
 
 	QMenu * m_toolsMenu;
+	QAction * m_reloadProjectAction;
 	QAction * m_undoAction;
 	QAction * m_redoAction;
 	QList<PluginView *> m_tools;
