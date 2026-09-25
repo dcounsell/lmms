@@ -1005,15 +1005,22 @@ void Song::createNewProjectFromTemplate( const QString & templ )
 
 
 // load given song
-void Song::loadProject( const QString & fileName )
+Song::ProjectLoadStatus Song::loadProject( const QString & fileName )
 {
 	using gui::getGUI;
 
 	QDomNode node;
+	bool failureReported = false;
 
 	m_loadingProject = true;
 
 	Engine::projectJournal()->setJournalling( false );
+
+	auto cancelLoading = [this]()
+	{
+		m_loadingProject = false;
+		Engine::projectJournal()->setJournalling( true );
+	};
 
 	m_oldFileName = m_fileName;
 	setProjectFileName(fileName);
@@ -1034,6 +1041,7 @@ void Song::loadProject( const QString & fileName )
 		if (dataFile.hasLocalPlugins())
 		{
 			cantLoadProject = true;
+			failureReported = true;
 
 			if (getGUI() != nullptr)
 			{
@@ -1052,12 +1060,15 @@ void Song::loadProject( const QString & fileName )
 
 	if (cantLoadProject)
 	{
+		cancelLoading();
 		if( m_loadOnLaunch )
 		{
 			createNewProject();
 		}
 		setProjectFileName(m_oldFileName);
-		return;
+		return failureReported
+			? ProjectLoadStatus::FailedAlreadyReported
+			: ProjectLoadStatus::Failed;
 	}
 
 	m_oldFileName = m_fileName;
@@ -1188,7 +1199,7 @@ void Song::loadProject( const QString & fileName )
 	{
 		m_isCancelled = false;
 		createNewProject();
-		return;
+		return ProjectLoadStatus::Cancelled;
 	}
 
 	if ( hasErrors())
@@ -1208,6 +1219,7 @@ void Song::loadProject( const QString & fileName )
 	updateLength();
 	setModified(false);
 	m_loadOnLaunch = false;
+	return ProjectLoadStatus::Success;
 }
 
 
